@@ -1,0 +1,392 @@
+DEF comtisch()
+
+  ; Declarations
+  decl FRAME PE
+  decl int elements_read
+  decl int ART , FRA
+  decl eki_status eki_ret
+  decl int J
+
+  FOR J=1 TO 6
+  $VEL_AXIS[J] = 100
+
+  $ACC_AXIS[J] = 100
+  ENDFOR
+
+  $VEL = {CP 1,ORI1 200,ORI2 200}
+  $ACC = {CP 2,ORI1 200,ORI2 200}
+
+  $BWDSTART=FALSE
+  $BASE = $NULLFRAME
+  $TOOL = $NULLFRAME
+
+  $H_POS=XHOME
+
+   eki_hw_iface_init()
+
+
+   ; BCO (Block COincidence) run to current position
+   ; (requied for below loop continue before first incoming command)
+   PE = {x 0,y 0,z 0,a 0,b 0,c 0}
+
+   $BWDSTART=FALSE
+   $BASE = $NULLFRAME
+   $TOOL = $NULLFRAME
+   PDAT_ACT=PDEFAULT
+   FDAT_ACT=FHOME
+   $H_POS=XHOME
+   ptp XHOME
+
+   $IPO_MODE = #BASE
+
+   $advance = 0
+
+   eki_ret = eki_setreal("Tisch", "Robot/Data/Act/St", 1)
+   eki_ret = eki_send("Tisch", "Robot")
+   eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+   $FLAG[1] = FALSE
+
+   LOOP
+     Prog()
+   ENDLOOP
+
+   ; Note: EKI channels delete on reset or deselect of this program
+   ;       See <ENVIRONMENT>Program</ENVIRONMENT> EKI config element
+end
+
+def Prog()
+    decl int ART , FRA
+    decl eki_status eki_ret
+    ;Roboter wartet auf Startbefehl (über Ethernet.KRL)
+
+    ART = 8
+    FRA = 8
+
+    WAIT sec 0.01
+    WaitF()
+    eki_ret = eki_getint("Tisch", "Robot/Data/ARTH", ART)
+
+    IF ART == 0 THEN
+      art0()
+    ELSE
+    IF ART == 1 THEN
+      art1()
+    ELSE
+    IF ART == 2 THEN
+      art2()
+    ENDIF
+    ENDIF
+    ENDIF
+
+    ;Fahre zurück zu Home
+    ;PTP XHOME
+
+    ;Melde zurück: Holz gegriffen über Ethernet.KRL
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/St", 2)
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/Gr", 0)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+    Wait sec 0.01
+    WaitF()
+    ;Warte auf Fräsbefehl (über Ethernet.KRL)
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/ARTF", FRA)
+
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    IF FRA == 0 THEN
+      fra0()
+    ELSE
+    IF FRA == 1 THEN
+      fra1()
+    ELSE
+    IF FRA == 2 THEN
+      fra2()
+    ENDIF
+    ENDIF
+    ENDIF
+
+    ;Melde zurück: Fertig
+
+    WAIT sec 0.02
+
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/Gr", 1)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+
+    rest()
+
+    ;Melde zurück: Fertig
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/Gr", 9)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+
+
+end
+
+def WaitF()
+    decl eki_status eki_ret
+    while $FLAG[1] == False
+      eki_ret = eki_checkbuffer("Tisch", "Robot/Data/ARTH")
+      if eki_ret.buff > 0 then
+        $FLAG[1] = True
+        eki_ret = eki_setreal("Tisch", "Robot/Data/Act/REC", 1)
+        eki_ret = eki_send("Tisch", "Robot")
+        eki_ret = EKI_ClearBuffer("Tisch", "Robot/Data/Act/REC")
+      endif
+    endwhile
+
+end
+
+DEF art0()
+   ; Declarations
+   decl FRAME PE
+   decl int J
+
+   FOR J=1 TO 6
+   $VEL_AXIS[J] = 100
+   $ACC_AXIS[J] = 100
+   ENDFOR
+
+   $VEL = {CP 1,ORI1 200,ORI2 200}
+   $ACC = {CP 2,ORI1 200,ORI2 200}
+
+   PE = {x 0,y 0,z 0,a 0,b 0,c 0}
+
+   $BWDSTART=FALSE
+   $BASE = $NULLFRAME
+   $TOOL = $NULLFRAME
+
+   $H_POS=XHOME
+   ptp XHOME
+
+   $TOOL = $NULLFRAME
+
+   TOOL_DATA[1] = $NULLFRAME
+   $advance = 1
+
+   $TOOL = $NULLFRAME
+
+   $APO.CPTP = 100
+
+   PE = {x 121.16 ,y -372.87 ,z 716.67 ,a 44.39 ,b 11.68 ,c 118.94}
+   PTP PE C_PTP
+
+   PE = {x -25.82 ,y -298.14 ,z 466.6 ,a 25.42 ,b -6.29 ,c 91.95}
+   PTP PE C_PTP
+
+   PE = {x -88.39 ,y -318.6 ,z 421.07 ,a -2.84 ,b 4.39 ,c 89.79}
+   PTP PE C_PTP
+
+   $advance = 0
+
+   $OUT[1] = False
+   $OUT[2] = True
+
+   Wait sec 2
+
+   PE = {x -88.40 ,y -463.27 ,z 421.07 ,a -2.84 ,b 4.39 ,c 89.79}
+   LIN PE
+
+   $OUT[2] = False
+   $OUT[1] = True
+
+   $advance = 1
+
+   Wait sec 2
+
+   PE = {x -88.40 ,y -326.43 ,z 485.71 ,a -2.84 ,b 4.39 ,c 89.79}
+   PTP PE C_PTP
+
+   PE = {x 63.82 ,y -328.44 ,z 485.71 ,a 17.97 ,b 4.42 ,c 89.79}
+   PTP PE C_PTP
+
+   $BASE = $NULLFRAME
+   $TOOL = $NULLFRAME
+
+   $H_POS=XHOME
+   ptp XHOME C_PTP
+   $advance = 0
+end
+
+def art1()
+end
+
+def art2()
+end
+
+def rest()
+    decl int J
+    decl FRAME PE1 , PE2 , PE3
+
+    PE1 = {x 16.65 ,y -467.21,z 545.2,a 44.53 ,b 87.84,c 84.03}
+    PE2 = {x 16.65 ,y -498.21,z 149.18,a 44.53 ,b 87.84,c 84.03}
+    PE3 = {x 16.65 ,y -467.21,z 545.2,a 44.53 ,b 87.84,c 84.03}
+
+    FOR J=1 TO 6
+    $VEL_AXIS[J] = 100
+    $ACC_AXIS[J] = 100
+    ENDFOR
+
+    $VEL = {CP 1,ORI1 200,ORI2 200}
+    $ACC = {CP 2,ORI1 200,ORI2 200}
+
+    $BWDSTART=FALSE
+    $BASE = $NULLFRAME
+    $TOOL = $NULLFRAME
+
+    $H_POS=XHOME
+
+    $TOOL = $NULLFRAME
+
+    TOOL_DATA[1] = $NULLFRAME
+    $advance = 0
+
+    PTP PE1
+    PTP PE2
+    PTP PE3
+
+    WAIT sec 10
+end
+
+def fra0()
+end
+def fra2()
+end
+
+def fra1()
+    decl FRAME PE1 , PE2 , PE3 , PE4 , PE5, PE21 , PE31 , PE41 , PE42 , PE51
+    decl eki_status eki_ret
+    decl int FRASTRAF
+    decl int J
+
+    FOR J=1 TO 6
+    $VEL_AXIS[J] = 100
+    $ACC_AXIS[J] = 100
+    ENDFOR
+
+    $VEL = {CP 1,ORI1 200,ORI2 200}
+    $ACC = {CP 2,ORI1 200,ORI2 200}
+
+    $BWDSTART=FALSE
+    $BASE = $NULLFRAME
+    $TOOL = $NULLFRAME
+
+    $H_POS=XHOME
+
+    $TOOL = $NULLFRAME
+
+    TOOL_DATA[1] = $NULLFRAME
+    $advance = 0
+
+
+    FRASTRAF = 8
+    PE1 = {x 535,y -105.43,z 426.55,a 154.88 ,b 88.17,c -109.13}
+    PE2 = {x 387.28,y -55.22,z 217.81,a -143.43,b 88.17,c -109.13}
+    PE21 = {x 387.28,y -55.22,z 179.19,a -143.43,b 88.17,c -109.13}
+    PE3 = {x 348.37,y 128.18,z 223.22,a -107.02 ,b 88.18,c -109.44}
+    PE31 = {x 356.03,y 128.18,z 170.26,a -107.02 ,b 88.18,c -109.44}
+    PE4 = {x 378.74,y -7.65,z 327.32,a 114.76,b 86.94,c 25.46}
+    PE41 = {x 378.74,y 39.27,z 327.32,a 114.76,b 86.94,c 25.46}
+    PE42 = {x 378.74,y -7.65,z 327.32,a 114.76,b 86.94,c 25.46}
+    PE5 = {x 261.01,y 270.45,z 292.42,a 142.13,b 87.42,c -5.67}
+    PE51 = {x 261.01,y 270.45,z 237.24,a 142.13,b 87.42,c -5.67}
+
+
+    ;Fahre zu Station 1, warte
+    PTP PE1
+    ;Startbefehl über Ethernet.KRL
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/FRASTART", 1)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = FALSE
+    WAIT sec 0.02
+    WaitF()
+
+    ;Bearbeitung
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/FRASTARTF", FRASTRAF)
+
+    ;Fahre zu Station 2
+    PTP PE2
+    LIN PE21
+
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/FRASTART", 2)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+    WAIT sec 0.02
+    WaitF()
+
+    ;Bearbeitung
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/FRASTARTF", FRASTRAF)
+
+    ;Fahre zu Station 3
+    PTP PE3
+    LIN PE31
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/FRASTART", 3)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+    WAIT sec 0.02
+    WaitF()
+
+    ;Bearbeitung
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/FRASTARTF", FRASTRAF)
+
+    ;Fahre zu Station 4
+    PTP PE4
+    LIN PE41
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/FRASTART", 4)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+    WAIT sec 0.02
+
+    WaitF()
+
+    ;Bearbeitung
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/FRASTARTF", FRASTRAF)
+
+    LIN PE42
+
+    ;Fahre zu Station 5
+    PTP PE5
+    LIN PE51
+    eki_ret = eki_setreal("Tisch", "Robot/Data/Act/FRASTART", 5)
+    eki_ret = eki_send("Tisch", "Robot")
+    eki_ret = EKI_ClearBuffer("Tisch", "Robot")
+    $FLAG[1] = False
+    WAIT sec 0.02
+    WaitF()
+
+    PTP PE5
+
+    ;Bearbeitung
+
+    eki_ret = eki_getint("Tisch", "Robot/Data/FRASTARTF", FRASTRAF)
+
+end
+
+
+def eki_hw_iface_init()
+   decl eki_status eki_ret
+   ; Create and open EKI interface
+   eki_ret = eki_init("Tisch")
+   eki_ret = eki_open("Tisch")
+
+end
+
+
+def eki_hw_iface_reset()
+   decl eki_status eki_ret
+
+   eki_ret = eki_clear("Tisch")
+   eki_ret = eki_init("Tisch")
+   eki_ret = eki_open("Tisch")
+end
